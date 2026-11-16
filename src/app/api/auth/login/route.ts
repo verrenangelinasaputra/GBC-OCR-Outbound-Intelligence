@@ -1,0 +1,145 @@
+import { hasDatabase, prisma } from "@/lib/db";
+import { verifyPassword } from "@/lib/auth/password";
+import { createSessionToken, setSessionCookie } from "@/lib/auth/session";
+import { isInternalSheetAuthEnabled } from "@/lib/config/internal-sheet";
+import { loginInternalFromSheet } from "@/lib/internal-auth/login";
+import { ASSIGNABLE_NAV_MODULES, PORTAL_NAV_OPERATIONS } from "@/lib/rbac/nav-modules";
+import { portalModuleHref } from "@/lib/portal/paths";
+import { NO_MODULE_ACCESS_PATH, usesPerUserModuleAccess } from "@/lib/rbac/permissions";
+import type { AppModule } from "@/lib/rbac/modules";
+import type { PortalModuleAccess } from "@/lib/rbac/portal-module-access";
+import { writeAuditLog } from "@/lib/services/audit";
+import { SupplierAuthError } from "@/lib/supplier-auth/errors";
+
+function pickFirstHref(mods: AppModule[], audience: "gudang" | "customer"): string | null {
+  for (const op of PORTAL_NAV_OPERATIONS) {
+    if (mods.includes(op.module)) return portalModuleHref(audience, op.href);
+  }
+  return null;
+}
+
+function internalSheetRedirect(roles: string[], access: PortalModuleAccess): string {
+  if (roles.includes("SUPPLIER_USER") && !roles.includes("SUPER_ADMIN")) return "/supplier";
+  if (usesPerUserModuleAccess(roles)) {
+    if (!access.union.length) return NO_MODULE_ACCESS_PATH;
+    const gudang = pickFirstHref(access.gudang, "gudang");
+    if (gudang) return gudang;
+    const customer = pickFirstHref(access.customer, "customer");
+    if (customer) return customer;
+    const first = ASSIGNABLE_NAV_MODULES.find((m) => access.union.includes(m.module));
+    return first?.href ?? NO_MODULE_ACCESS_PATH;
+  }
+  return "/dashboard";
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const username = String(body.username ?? "").trim();
+    const password = String(body.password ?? "");
+
+    if (isInternalSheetAuthEnabled()) {
+      const account = await loginInternalFromSheet(username, password);
+      const roles = account.roles;
+      const token = await createSessionToken({
+        userId: account.userId,
+        username: account.username,
+        roles,
+        supplierId: null,
+        allowedModules: account.allowedModules,
+        allowedModulesGudang: account.allowedModulesGudang,
+        allowedModulesCustomer: account.allowedModulesCustomer,
+      });
+      await setSessionCookie(token);
+      const redirect = internalSheetRedirect(roles, {
+        gudang: account.allowedModulesGudang,
+        customer: account.allowedModulesCustomer,
+        union: account.allowedModules,
+      });
+      return Response.json({ ok: true, redirect, roles, auth: "internal-sheet" });
+    }
+
+    if (!hasDatabase()) {
+      return Response.json(
+        {
+          error:
+            "Login internal membutuhkan spreadsheet Users (INTERNAL_SHEET_ID) atau DATABASE_URL.",
+        },
+        { status: 503 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { username },
+      include: { userRoles: { include: { role: true } }, supplier: true },
+    });
+
+    if (!user || user.status !== "ACTIVE") {
+      return Response.json({ error: "Username atau password salah" }, { status: 401 });
+    }
+
+    const ok = await verifyPassword(password, user.passwordHash);
+    if (!ok) {
+      return Response.json({ error: "Username atau password salah" }, { status: 401 });
+    }
+
+    const roles = user.userRoles.map((ur) => ur.role.code);
+    const token = await createSessionToken({
+      userId: user.id,
+      username: user.username,
+      roles,
+      supplierId: user.supplierId,
+    });
+    await setSessionCookie(token);
+
+    await writeAuditLog({
+      actorId: user.id,
+      action: "auth.login",
+      entityType: "User",
+      entityId: user.id,
+    });
+
+    const redirect =
+      roles.includes("SUPPLIER_USER") && !roles.includes("SUPER_ADMIN")
+        ? "/supplier"
+        : "/dashboard";
+
+    return Response.json({ ok: true, redirect, roles });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[auth.login]", message);
+
+    if (message.includes("SESSION_SECRET")) {
+      return Response.json(
+        {
+          error:
+            "SESSION_SECRET belum valid di server (Vercel → Environment Variables, min. 32 karakter, lalu Redeploy).",
+        },
+        { status: 500 }
+      );
+    }
+    if (message.includes("Can't reach database server")) {
+      return Response.json(
+        {
+          error:
+            "Database tidak terjangkau dari Vercel. Supabase: Restore project jika paused, ganti DATABASE_URL ke Transaction pooler (port 6543 + pgbouncer=true).",
+        },
+        { status: 500 }
+      );
+    }
+    if (/authentication failed|password authentication/i.test(message)) {
+      return Response.json(
+        {
+          error:
+            "Password di DATABASE_URL salah (encode ! jadi %21). Cek env Vercel lalu Redeploy.",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (e instanceof SupplierAuthError) {
+      return Response.json({ error: e.message }, { status: e.status });
+    }
+    return Response.json({ error: "Login gagal — buka /api/health untuk diagnosa." }, { status: 500 });
+  }
+}

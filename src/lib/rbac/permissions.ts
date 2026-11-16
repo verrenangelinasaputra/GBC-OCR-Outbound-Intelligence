@@ -1,0 +1,253 @@
+import { PermissionAction } from "@prisma/client";
+import { isSheetOnlyMode } from "@/lib/config/app-mode";
+import type { AppModule, RoleCode } from "./modules";
+import { isActivePortalModule, pathnameToModule } from "./nav-modules";
+import { allowedModulesForPathname } from "./portal-module-access";
+import type { SessionPayload } from "@/lib/auth/session";
+
+const SHEET_INTERNAL_ROLES: RoleCode[] = ["DBM_OPERATOR", "WAREHOUSE_OPERATOR", "MANAGEMENT_VIEWER"];
+
+/** Halaman aman bila user belum punya modul apa pun (Opsi B). */
+export const NO_MODULE_ACCESS_PATH = "/no-access";
+
+/** Mode spreadsheet: akses halaman hanya dari kolom `allowed_modules`, bukan matriks role. */
+export function usesPerUserModuleAccess(roles: string[]): boolean {
+  if (!isSheetOnlyMode()) return false;
+  if (roles.includes("SUPER_ADMIN")) return false;
+  return roles.some((r) => SHEET_INTERNAL_ROLES.includes(r as RoleCode));
+}
+
+function isInternalPortalUser(roles: string[]): boolean {
+  if (roles.includes("SUPER_ADMIN")) return true;
+  return roles.some((r) => SHEET_INTERNAL_ROLES.includes(r as RoleCode));
+}
+
+/** Blokir route modul yang sudah tidak dipakai di pilot spreadsheet. */
+export function isRetiredPortalPath(pathname: string): boolean {
+  if (!isSheetOnlyMode()) return false;
+  const mod = pathnameToModule(pathname);
+  return mod !== null && !isActivePortalModule(mod);
+}
+
+export type PermissionKey = `${AppModule}:${PermissionAction}`;
+
+/** Default permission matrix — dapat di-override via DB di versi mendatang */
+const ROLE_MATRIX: Record<RoleCode, PermissionKey[]> = {
+  SUPER_ADMIN: buildAll(),
+  DBM_OPERATOR: [
+    "dashboard:VIEW",
+    "nkb:VIEW",
+    "nkb:EDIT",
+    "surat_jalan:VIEW",
+    "surat_jalan:EDIT",
+    "surat_jalan:SUBMIT",
+    "ocr_review:VIEW",
+    "ocr_review:EDIT",
+    "ocr_review:SUBMIT",
+    "sku_mapping:VIEW",
+    "sku_mapping:CREATE",
+    "sku_mapping:EDIT",
+    "sku_mapping:APPROVE",
+    "master_mapping:VIEW",
+    "master_mapping:CREATE",
+    "master_mapping:EDIT",
+    "supplier_data_mapping:VIEW",
+    "supplier_data_mapping:CREATE",
+    "supplier_data_mapping:EDIT",
+    "data_barang_masuk:VIEW",
+    "data_barang_masuk:EXPORT",
+    "purchase_orders:VIEW",
+    "purchase_orders:CREATE",
+    "purchase_orders:EDIT",
+    "purchase_orders:SUBMIT",
+    "purchase_orders:APPROVE",
+    "goods_receiving:VIEW",
+    "discrepancies:VIEW",
+    "discrepancies:EDIT",
+    "discrepancies:SUBMIT",
+    "master_prices:VIEW",
+    "master_prices:CREATE",
+    "master_prices:EDIT",
+    "invoices:VIEW",
+    "invoices:CREATE",
+    "invoices:EDIT",
+    "invoices:SUBMIT",
+    "invoices:APPROVE",
+    "accounts_payable:VIEW",
+    "accounts_payable:CREATE",
+    "accounts_payable:EDIT",
+    "suppliers:VIEW",
+    "reports:VIEW",
+    "reports:EXPORT",
+    "notifications:VIEW",
+  ],
+  WAREHOUSE_OPERATOR: [
+    "dashboard:VIEW",
+    "surat_jalan:VIEW",
+    "ocr_review:VIEW",
+    "ocr_review:EDIT",
+    "ocr_review:SUBMIT",
+    "sku_mapping:VIEW",
+    "sku_mapping:EDIT",
+    "sku_mapping:APPROVE",
+    "master_mapping:VIEW",
+    "master_mapping:CREATE",
+    "master_mapping:EDIT",
+    "supplier_data_mapping:VIEW",
+    "supplier_data_mapping:CREATE",
+    "supplier_data_mapping:EDIT",
+    "data_barang_masuk:VIEW",
+    "purchase_orders:VIEW",
+    "goods_receiving:VIEW",
+    "goods_receiving:CREATE",
+    "goods_receiving:EDIT",
+    "goods_receiving:SUBMIT",
+    "discrepancies:VIEW",
+    "discrepancies:CREATE",
+    "discrepancies:EDIT",
+    "discrepancies:SUBMIT",
+    "notifications:VIEW",
+  ],
+  SUPPLIER_USER: [
+    "supplier_portal:VIEW",
+    "supplier_portal:CREATE",
+    "supplier_portal:SUBMIT",
+    "notifications:VIEW",
+  ],
+  MANAGEMENT_VIEWER: [
+    "dashboard:VIEW",
+    "nkb:VIEW",
+    "surat_jalan:VIEW",
+    "data_barang_masuk:VIEW",
+    "purchase_orders:VIEW",
+    "goods_receiving:VIEW",
+    "discrepancies:VIEW",
+    "invoices:VIEW",
+    "accounts_payable:VIEW",
+    "reports:VIEW",
+    "notifications:VIEW",
+  ],
+};
+
+function buildAll(): PermissionKey[] {
+  const actions: PermissionAction[] = [
+    "VIEW",
+    "CREATE",
+    "EDIT",
+    "SUBMIT",
+    "APPROVE",
+    "EXPORT",
+    "MANAGE",
+  ];
+  const modules: AppModule[] = [
+    "dashboard",
+    "nkb",
+    "surat_jalan",
+    "ocr_review",
+    "sku_mapping",
+    "master_mapping",
+    "supplier_data_mapping",
+    "data_barang_masuk",
+    "purchase_orders",
+    "goods_receiving",
+    "discrepancies",
+    "master_prices",
+    "invoices",
+    "accounts_payable",
+    "suppliers",
+    "reports",
+    "notifications",
+    "audit_logs",
+    "users",
+    "integrations",
+    "settings",
+    "supplier_portal",
+  ];
+  return modules.flatMap((m) => actions.map((a) => `${m}:${a}` as PermissionKey));
+}
+
+export function hasPermission(
+  roles: string[],
+  module: AppModule,
+  action: PermissionAction,
+  allowedModules?: AppModule[] | null
+): boolean {
+  if (roles.includes("SUPER_ADMIN")) return true;
+  if (usesPerUserModuleAccess(roles)) {
+    return (allowedModules ?? []).includes(module);
+  }
+  if (allowedModules && allowedModules.length > 0) {
+    return allowedModules.includes(module);
+  }
+  for (const role of roles as RoleCode[]) {
+    const perms = ROLE_MATRIX[role];
+    if (perms?.includes(`${module}:${action}` as PermissionKey)) return true;
+  }
+  return false;
+}
+
+export function canAccessRoute(
+  roles: string[],
+  pathname: string,
+  allowedModules: AppModule[] | undefined | null,
+  session?: Pick<SessionPayload, "allowedModulesGudang" | "allowedModulesCustomer"> | null
+): boolean {
+  if (
+    pathname === NO_MODULE_ACCESS_PATH ||
+    pathname.startsWith(`${NO_MODULE_ACCESS_PATH}/`)
+  ) {
+    return usesPerUserModuleAccess(roles);
+  }
+  const mod = pathnameToModule(pathname);
+  if (mod && isSheetOnlyMode() && isInternalPortalUser(roles) && !isActivePortalModule(mod)) {
+    return false;
+  }
+  if (roles.includes("SUPER_ADMIN")) return true;
+  if (!mod) return true;
+  const scoped =
+    session && usesPerUserModuleAccess(roles)
+      ? allowedModulesForPathname(
+          {
+            roles,
+            allowedModules: allowedModules ?? undefined,
+            allowedModulesGudang: session.allowedModulesGudang,
+            allowedModulesCustomer: session.allowedModulesCustomer,
+          },
+          pathname
+        )
+      : allowedModules;
+  return hasPermission(roles, mod, "VIEW", scoped);
+}
+
+export async function loadUserPermissions(userId: string): Promise<{
+  roles: string[];
+  permissions: Set<PermissionKey>;
+}> {
+  const { prisma } = await import("@/lib/db");
+  const userRoles = await prisma.userRole.findMany({
+    where: { userId },
+    include: { role: true },
+  });
+  const roles = userRoles.map((ur) => ur.role.code);
+  const permissions = new Set<PermissionKey>();
+  for (const role of roles as RoleCode[]) {
+    for (const p of ROLE_MATRIX[role] ?? []) {
+      permissions.add(p);
+    }
+    if (role === "SUPER_ADMIN") {
+      for (const p of buildAll()) permissions.add(p);
+    }
+  }
+  return { roles, permissions };
+}
+
+export function requirePermission(
+  roles: string[],
+  module: AppModule,
+  action: PermissionAction,
+  allowedModules?: AppModule[] | null
+): void {
+  if (!hasPermission(roles, module, action, allowedModules)) {
+    throw new Error("FORBIDDEN");
+  }
+}

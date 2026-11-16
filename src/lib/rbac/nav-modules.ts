@@ -1,0 +1,103 @@
+import type { AppModule } from "@/lib/rbac/modules";
+
+/** Menu operasional GBC — hanya modul ini yang tampil & bisa di-assign ke user. */
+export const PORTAL_NAV_MODULES: {
+  module: AppModule;
+  label: string;
+  href: string;
+}[] = [
+  { module: "dashboard", label: "Dashboard", href: "/dashboard" },
+  { module: "ocr_review", label: "Review Surat Jalan", href: "/ocr-review" },
+  { module: "sku_mapping", label: "Product SKU Mapping", href: "/sku-mapping" },
+  { module: "master_mapping", label: "Generator SKU", href: "/master-mapping" },
+  {
+    module: "supplier_data_mapping",
+    label: "Mapping Data Supplier",
+    href: "/supplier-data-mapping",
+  },
+  { module: "data_barang_masuk", label: "Data Barang Masuk", href: "/data-barang-masuk" },
+  { module: "users", label: "User & Role Management", href: "/users" },
+];
+
+/** Modul operasional (tanpa admin user). */
+export const PORTAL_NAV_OPERATIONS = PORTAL_NAV_MODULES.filter((m) => m.module !== "users");
+
+export function customerPortalHref(baseHref: string): string {
+  if (baseHref.startsWith("/customer/")) return baseHref;
+  return `/customer${baseHref}`;
+}
+
+export const PORTAL_NAV_SECTIONS = [
+  {
+    id: "gudang" as const,
+    title: "Gudang",
+    items: PORTAL_NAV_OPERATIONS,
+  },
+  {
+    id: "customer" as const,
+    title: "Customer",
+    items: PORTAL_NAV_OPERATIONS.map((m) => ({ ...m, href: customerPortalHref(m.href) })),
+  },
+  {
+    id: "admin" as const,
+    title: "Admin",
+    items: PORTAL_NAV_MODULES.filter((m) => m.module === "users"),
+  },
+];
+
+/** Alias untuk UI admin (centang halaman per user). */
+export const ASSIGNABLE_NAV_MODULES = PORTAL_NAV_MODULES;
+
+/** Halaman operasional per section (tanpa User & Role Management). */
+export const ASSIGNABLE_GUDANG_MODULES = PORTAL_NAV_OPERATIONS;
+export const ASSIGNABLE_CUSTOMER_MODULES = PORTAL_NAV_OPERATIONS;
+
+/** Route lama — tidak tampil di sidebar; dipakai agar middleware bisa menolak akses langsung via URL. */
+const RETIRED_PORTAL_ROUTES: { module: AppModule; href: string }[] = [
+  { module: "nkb", href: "/nkb" },
+  { module: "surat_jalan", href: "/surat-jalan" },
+  { module: "purchase_orders", href: "/purchase-orders" },
+  { module: "goods_receiving", href: "/goods-receiving" },
+  { module: "discrepancies", href: "/discrepancies" },
+  { module: "master_prices", href: "/master-prices" },
+  { module: "invoices", href: "/invoices" },
+  { module: "accounts_payable", href: "/accounts-payable" },
+  { module: "suppliers", href: "/suppliers" },
+  { module: "reports", href: "/reports" },
+  { module: "notifications", href: "/notifications" },
+  { module: "audit_logs", href: "/audit-logs" },
+  { module: "integrations", href: "/integrations" },
+  { module: "settings", href: "/settings" },
+];
+
+const ROUTE_CATALOG = [...PORTAL_NAV_MODULES, ...RETIRED_PORTAL_ROUTES];
+
+export function isActivePortalModule(mod: AppModule): boolean {
+  return PORTAL_NAV_MODULES.some((p) => p.module === mod);
+}
+
+export function pathnameToModule(pathname: string): AppModule | null {
+  const normalized =
+    pathname === "/customer" || pathname.startsWith("/customer/")
+      ? pathname.replace(/^\/customer/, "") || "/dashboard"
+      : pathname;
+  const entry = ROUTE_CATALOG.find(
+    (n) => normalized === n.href || normalized.startsWith(`${n.href}/`)
+  );
+  return entry?.module ?? null;
+}
+
+export function parseAllowedModulesCell(raw: string | undefined | null): AppModule[] {
+  const text = String(raw ?? "").trim();
+  if (!text) return [];
+  const valid = new Set(PORTAL_NAV_MODULES.map((m) => m.module));
+  return text
+    .split(/[;|,]/)
+    .map((s) => s.trim().toLowerCase() as AppModule)
+    .filter((m) => valid.has(m));
+}
+
+export function formatAllowedModulesCell(modules: AppModule[]): string {
+  const valid = new Set(PORTAL_NAV_MODULES.map((m) => m.module));
+  return [...new Set(modules)].filter((m) => valid.has(m)).join(";");
+}
