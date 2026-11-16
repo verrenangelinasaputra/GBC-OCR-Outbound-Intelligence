@@ -12,12 +12,20 @@ export async function GET(request: Request) {
   if (!skuMasterApiEnabled()) return jsonError(new Error("Mode spreadsheet tidak aktif"), 404);
   try {
     const session = await requireApiSession();
-    if (!hasPermission(session.roles, "master_mapping", "VIEW", session.allowedModules)) {
-      return jsonError(new Error("FORBIDDEN"), 403);
-    }
-
     const url = new URL(request.url);
     const view = String(url.searchParams.get("view") ?? "table").trim();
+
+    const canMaster = hasPermission(session.roles, "master_mapping", "VIEW", session.allowedModules);
+    const canSkuMapping = hasPermission(session.roles, "sku_mapping", "VIEW", session.allowedModules);
+    const canRekapSkusOnly = view === "rekap-skus" && (canMaster || canSkuMapping);
+
+    if (view === "rekap-skus") {
+      if (!canRekapSkusOnly) {
+        return jsonError(new Error("FORBIDDEN"), 403);
+      }
+    } else if (!canMaster) {
+      return jsonError(new Error("FORBIDDEN"), 403);
+    }
     const categoryTab = String(url.searchParams.get("tab") ?? "").trim();
     const force = url.searchParams.get("refresh") === "1";
 

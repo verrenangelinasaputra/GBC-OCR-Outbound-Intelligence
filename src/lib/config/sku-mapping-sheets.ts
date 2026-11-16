@@ -9,6 +9,9 @@ export const SKU_REKAP_TAB_NAME = "REKAP SKUL";
 /** Google Sheets tab id REKAP SKUL pada spreadsheet v2. */
 export const SKU_REKAP_GID = 1147104168;
 
+/** Google Sheets tab id REKAP SKUS pada spreadsheet v2. */
+export const SKU_REKAP_SKUS_GID = 657276403;
+
 /** Alias OCR → SKU (jika tidak match fuzzy ke REKAP). */
 export const MASTER_MAPPING_TAB_NAME = "Master Mapping";
 
@@ -42,6 +45,14 @@ export function getSkuRekapSpreadsheetEditUrl(): string {
   const gidRaw = process.env.SKU_REKAP_GID?.trim();
   const gid = gidRaw && /^\d+$/.test(gidRaw) ? gidRaw : String(SKU_REKAP_GID);
   return `https://docs.google.com/spreadsheets/d/${sheetId}/edit?pli=1&gid=${gid}#gid=${gid}`;
+}
+
+/** Direct link to REKAP SKUS tab (katalog keluarga SKUS). */
+export function getSkuRekapSkusSpreadsheetEditUrl(): string {
+  const sheetId = getSkuMasterSheetId();
+  const gidRaw = process.env.SKU_REKAP_SKUS_GID?.trim();
+  const gid = gidRaw && /^\d+$/.test(gidRaw) ? gidRaw : String(SKU_REKAP_SKUS_GID);
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/edit?gid=${gid}#gid=${gid}`;
 }
 
 export function getMasterMappingTabName(): string {

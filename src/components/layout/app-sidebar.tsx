@@ -25,6 +25,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "/dashboard": LayoutDashboard,
   "/ocr-review": ScanLine,
   "/sku-mapping": Link2,
+  "/skus": Link2,
   "/master-mapping": Tags,
   "/supplier-data-mapping": Truck,
   "/data-barang-masuk": Package,
