@@ -1,13 +1,66 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { SkuMasterRekapSkusRow } from "@/lib/sku-master/types";
+
+function rowSearchBlob(r: SkuMasterRekapSkusRow): string {
+  return [
+    r.rowNo,
+    r.skus,
+    r.namaInternal,
+    String(r.variantCount),
+    r.sourceTab,
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function tokensMatch(blob: string, tokens: string[]): boolean {
+  return tokens.every((t) => blob.includes(t));
+}
+
+function highlightParts(text: string, tokens: string[]): ReactNode {
+  if (!tokens.length || !text) return text || "—";
+  const lower = text.toLowerCase();
+  const spans: { start: number; end: number }[] = [];
+  for (const token of tokens) {
+    let from = 0;
+    while (token) {
+      const idx = lower.indexOf(token, from);
+      if (idx === -1) break;
+      spans.push({ start: idx, end: idx + token.length });
+      from = idx + token.length;
+    }
+  }
+  if (!spans.length) return text;
+  spans.sort((a, b) => a.start - b.start);
+  const merged: { start: number; end: number }[] = [];
+  for (const s of spans) {
+    const last = merged[merged.length - 1];
+    if (last && s.start <= last.end) last.end = Math.max(last.end, s.end);
+    else merged.push({ ...s });
+  }
+  const out: ReactNode[] = [];
+  let cursor = 0;
+  merged.forEach((m, i) => {
+    if (cursor < m.start) out.push(text.slice(cursor, m.start));
+    out.push(
+      <mark key={`${m.start}-${i}`} className="rounded bg-amber-200/90 px-0.5 text-inherit">
+        {text.slice(m.start, m.end)}
+      </mark>
+    );
+    cursor = m.end;
+  });
+  if (cursor < text.length) out.push(text.slice(cursor));
+  return out;
+}
 
 export function RekapSkusCatalog() {
   const [rows, setRows] = useState<SkuMasterRekapSkusRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [sourceTab, setSourceTab] = useState("");
 
   const load = useCallback(async (refresh = false) => {
     setLoading(true);
@@ -28,63 +81,129 @@ export function RekapSkusCatalog() {
     void load();
   }, [load]);
 
+  const sourceTabOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      const t = r.sourceTab.trim();
+      if (t) set.add(t);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "id"));
+  }, [rows]);
+
+  const searchTokens = useMemo(() => {
+    return query
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+  }, [query]);
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.skus.toLowerCase().includes(q) ||
-        r.namaInternal.toLowerCase().includes(q) ||
-        r.sourceTab.toLowerCase().includes(q)
-    );
-  }, [query, rows]);
+    return rows.filter((r) => {
+      if (sourceTab && r.sourceTab.trim() !== sourceTab) return false;
+      if (!searchTokens.length) return true;
+      return tokensMatch(rowSearchBlob(r), searchTokens);
+    });
+  }, [rows, searchTokens, sourceTab]);
+
+  const filterActive = searchTokens.length > 0 || sourceTab !== "";
+
+  function clearFilters() {
+    setQuery("");
+    setSourceTab("");
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari SKUS, nama internal, atau sumber…"
-          className="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-        />
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void load(true)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          {loading ? "Memuat…" : "Refresh dari spreadsheet"}
-        </button>
+      <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cari di tabel</p>
+        <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+          <label className="flex min-w-[16rem] flex-1 flex-col gap-1">
+            <span className="text-sm text-slate-700">Kata kunci</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="SKUS, nama internal, no, jumlah varian…"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              autoComplete="off"
+            />
+            <span className="text-xs text-slate-500">Beberapa kata = semuanya harus cocok (AND).</span>
+          </label>
+          <label className="flex w-full flex-col gap-1 sm:w-48">
+            <span className="text-sm text-slate-700">Sumber tab</span>
+            <select
+              value={sourceTab}
+              onChange={(e) => setSourceTab(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <option value="">Semua tab</option>
+              {sourceTabOptions.map((tab) => (
+                <option key={tab} value={tab}>
+                  {tab}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {filterActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Hapus filter
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void load(true)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {loading ? "Memuat…" : "Refresh spreadsheet"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="max-h-[min(70vh,720px)] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         {loading && rows.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-slate-500">Memuat REKAP SKUS…</p>
         ) : (
-          <RekapSkusTable rows={filtered} />
+          <RekapSkusTable rows={filtered} highlightTokens={searchTokens} />
         )}
       </div>
 
       <p className="text-xs text-slate-500">
-        Menampilkan {filtered.length} dari {rows.length} baris (cache server ±5 menit).
+        Menampilkan <strong>{filtered.length}</strong> dari <strong>{rows.length}</strong> baris
+        {filterActive ? " (hasil filter)" : ""} · cache server ±5 menit.
       </p>
     </div>
   );
 }
 
-function RekapSkusTable({ rows }: { rows: SkuMasterRekapSkusRow[] }) {
+function RekapSkusTable({
+  rows,
+  highlightTokens,
+}: {
+  rows: SkuMasterRekapSkusRow[];
+  highlightTokens: string[];
+}) {
   if (rows.length === 0) {
-    return <p className="px-4 py-8 text-center text-sm text-slate-500">REKAP SKUS kosong atau tidak cocok filter.</p>;
+    return (
+      <p className="px-4 py-8 text-center text-sm text-slate-500">
+        Tidak ada baris yang cocok. Coba kata kunci lain atau hapus filter.
+      </p>
+    );
   }
   return (
     <table className="min-w-full text-left text-sm">
-      <thead className="bg-slate-50 text-slate-600">
+      <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 shadow-sm">
         <tr>
           <th className="px-3 py-2.5 font-medium">No</th>
           <th className="px-3 py-2.5 font-medium">SKUS</th>
@@ -96,11 +215,15 @@ function RekapSkusTable({ rows }: { rows: SkuMasterRekapSkusRow[] }) {
       <tbody className="divide-y divide-slate-100 text-slate-800">
         {rows.map((r, index) => (
           <tr key={`${r.skus}-${r.sourceTab}-${index}`} className="hover:bg-slate-50/80">
-            <td className="px-3 py-2 tabular-nums text-slate-500">{r.rowNo || index + 1}</td>
-            <td className="px-3 py-2 font-mono text-xs">{r.skus}</td>
-            <td className="px-3 py-2">{r.namaInternal || "—"}</td>
-            <td className="px-3 py-2 tabular-nums">{r.variantCount || "—"}</td>
-            <td className="px-3 py-2 text-slate-600">{r.sourceTab || "—"}</td>
+            <td className="px-3 py-2 tabular-nums text-slate-500">
+              {highlightParts(r.rowNo || String(index + 1), highlightTokens)}
+            </td>
+            <td className="px-3 py-2 font-mono text-xs">{highlightParts(r.skus, highlightTokens)}</td>
+            <td className="px-3 py-2">{highlightParts(r.namaInternal, highlightTokens)}</td>
+            <td className="px-3 py-2 tabular-nums">
+              {highlightParts(String(r.variantCount || "—"), highlightTokens)}
+            </td>
+            <td className="px-3 py-2 text-slate-600">{highlightParts(r.sourceTab, highlightTokens)}</td>
           </tr>
         ))}
       </tbody>
