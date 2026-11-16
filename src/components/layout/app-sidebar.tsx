@@ -26,7 +26,6 @@ type NavItem = { href: string; label: string; icon: LucideIcon; module: AppModul
 export function AppSidebar({
   roles,
   allowedModulesGudang,
-  allowedModulesCustomer,
 }: {
   roles: string[];
   allowedModulesGudang?: AppModule[];
@@ -38,10 +37,7 @@ export function AppSidebar({
   const activeAudience = portalAudienceFromPathname(pathname);
 
   const filterItems = useMemo(() => {
-    return (
-      items: { href: string; label: string; module: AppModule }[],
-      sectionId: (typeof PORTAL_NAV_SECTIONS)[number]["id"]
-    ): NavItem[] => {
+    return (items: { href: string; label: string; module: AppModule }[]): NavItem[] => {
       const mapped = items.map((m) => ({
         href: m.href,
         label: m.label,
@@ -49,13 +45,7 @@ export function AppSidebar({
         icon: iconForHref(m.href),
       }));
       if (isSuperAdmin) return mapped;
-      if (sectionId === "admin") {
-        return isSuperAdmin ? mapped : [];
-      }
-      const mods =
-        sectionId === "customer"
-          ? (allowedModulesCustomer ?? [])
-          : (allowedModulesGudang ?? []);
+      const mods = allowedModulesGudang ?? [];
       if (usesPerUserModuleAccess(roles)) {
         return mapped.filter((item) => mods.includes(item.module));
       }
@@ -64,12 +54,12 @@ export function AppSidebar({
       }
       return mapped;
     };
-  }, [allowedModulesCustomer, allowedModulesGudang, isSuperAdmin, roles]);
+  }, [allowedModulesGudang, isSuperAdmin, roles]);
 
   const sections = useMemo(() => {
     return PORTAL_NAV_SECTIONS.map((section) => ({
       ...section,
-      items: filterItems(section.items, section.id),
+      items: filterItems(section.items),
     })).filter((s) => s.items.length > 0);
   }, [filterItems]);
 
@@ -113,10 +103,7 @@ export function AppSidebar({
               <p
                 className={clsx(
                   "mb-1 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider",
-                  section.id === activeAudience ||
-                  (activeAudience === "admin" && section.id === "admin")
-                    ? "text-blue-300"
-                    : "text-slate-500"
+                  section.id === activeAudience ? "text-blue-300" : "text-slate-500"
                 )}
               >
                 {section.title}
