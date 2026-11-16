@@ -15,7 +15,7 @@ export default async function SkusCatalogPage() {
   const audience = await getPortalAudience();
 
   if (!spreadsheetModeActive()) {
-    return <SpreadsheetModePage title="Katalog SKUS" />;
+    return <SpreadsheetModePage title="Rekap Barang Keluar" />;
   }
 
   const session = await getSession();
@@ -30,12 +30,12 @@ export default async function SkusCatalogPage() {
   if (!canViewSkuMapping && !canViewMaster) {
     return (
       <ModuleListPage
-        title="Katalog SKUS"
-        description="Daftar keluarga SKUS dari tab REKAP SKUS (generator master)."
+        title="Rekap Barang Keluar"
+        description="Tabel SKUS dari spreadsheet generator master."
       >
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Anda tidak punya akses. Minta admin mencentang modul <strong>Product SKU Mapping</strong> atau{" "}
-          <strong>Generator SKU</strong> di User &amp; Role Management.
+          Anda tidak punya akses halaman <strong>Rekap Barang Keluar</strong>. Minta admin mengaktifkan modul ini di
+          spreadsheet Users (kolom allowed modules).
         </p>
       </ModuleListPage>
     );
@@ -43,8 +43,8 @@ export default async function SkusCatalogPage() {
 
   return (
     <ModuleListPage
-      title="Katalog SKUS"
-      description="Read-only — tab REKAP SKUS pada generator master SKU GBC."
+      title="Rekap Barang Keluar"
+      description="Tabel SKUS (tab REKAP SKUS) — read-only."
     >
       <PortalAudienceBanner audience={audience} />
       <p className="mb-4 text-sm text-slate-600">

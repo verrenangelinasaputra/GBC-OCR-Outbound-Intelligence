@@ -10,6 +10,7 @@ import type { AppModule } from "@/lib/rbac/modules";
 import type { PortalModuleAccess } from "@/lib/rbac/portal-module-access";
 import { writeAuditLog } from "@/lib/services/audit";
 import { SupplierAuthError } from "@/lib/supplier-auth/errors";
+import { PORTAL_HOME_HREF } from "@/lib/config/product";
 
 function pickFirstHref(mods: AppModule[], audience: "gudang" | "customer"): string | null {
   for (const op of PORTAL_NAV_OPERATIONS) {
@@ -29,7 +30,7 @@ function internalSheetRedirect(roles: string[], access: PortalModuleAccess): str
     const first = ASSIGNABLE_NAV_MODULES.find((m) => access.union.includes(m.module));
     return first?.href ?? NO_MODULE_ACCESS_PATH;
   }
-  return "/dashboard";
+  return PORTAL_HOME_HREF;
 }
 
 export async function POST(request: Request) {
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
     const redirect =
       roles.includes("SUPPLIER_USER") && !roles.includes("SUPER_ADMIN")
         ? "/supplier"
-        : "/dashboard";
+        : PORTAL_HOME_HREF;
 
     return Response.json({ ok: true, redirect, roles });
   } catch (e) {

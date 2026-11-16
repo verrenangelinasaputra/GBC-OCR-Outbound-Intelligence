@@ -2,7 +2,7 @@ import { AppSidebar } from "./app-sidebar";
 import { MobileShellLayout } from "./mobile-shell-layout";
 import { WarehouseProfileChip } from "./warehouse-profile-chip";
 import { getSession } from "@/lib/auth/session";
-import Link from "next/link";
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/config/product";
 
 export async function AppShell({ children, title }: { children: React.ReactNode; title: string }) {
   const session = await getSession();
@@ -10,7 +10,7 @@ export async function AppShell({ children, title }: { children: React.ReactNode;
   return (
     <MobileShellLayout
       title={title}
-      subtitle="GBC Inbound Intelligence"
+      subtitle={`${PRODUCT_NAME} · ${PRODUCT_TAGLINE}`}
       sidebar={
         <AppSidebar
           roles={session?.roles ?? []}
@@ -29,9 +29,6 @@ export async function AppShell({ children, title }: { children: React.ReactNode;
               Logout
             </button>
           </form>
-          <Link href="/notifications" className="hidden text-blue-600 hover:underline sm:inline">
-            Notifikasi
-          </Link>
         </>
       }
     >

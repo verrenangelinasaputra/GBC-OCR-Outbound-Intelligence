@@ -4,32 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import type { LucideIcon } from "lucide-react";
-import {
-  LayoutDashboard,
-  ScanLine,
-  Link2,
-  Package,
-  Tags,
-  Truck,
-  Users,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { LayoutDashboard, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { AppModule } from "@/lib/rbac/modules";
 import { PORTAL_NAV_SECTIONS } from "@/lib/rbac/nav-modules";
 import { usesPerUserModuleAccess } from "@/lib/rbac/permissions";
 import { portalAudienceFromPathname } from "@/lib/portal/paths";
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/config/product";
 
 const NAV_ICONS: Record<string, LucideIcon> = {
-  "/dashboard": LayoutDashboard,
-  "/ocr-review": ScanLine,
-  "/sku-mapping": Link2,
-  "/skus": Link2,
-  "/master-mapping": Tags,
-  "/supplier-data-mapping": Truck,
-  "/data-barang-masuk": Package,
-  "/users": Users,
+  "/skus": Package,
 };
 
 function iconForHref(href: string): LucideIcon {
@@ -104,8 +88,8 @@ export function AppSidebar({
       <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-4 py-4">
         {!collapsed && (
           <div>
-            <p className="text-sm font-semibold text-white">GBC Inbound Intelligence</p>
-            <p className="text-xs text-slate-400">Surat Jalan & DBM</p>
+            <p className="text-sm font-semibold text-white">{PRODUCT_NAME}</p>
+            <p className="text-xs text-slate-400">{PRODUCT_TAGLINE}</p>
           </div>
         )}
         <button

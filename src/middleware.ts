@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 import { isSheetOnlyMode } from "@/lib/config/app-mode";
 import { canAccessRoute, isRetiredPortalPath, NO_MODULE_ACCESS_PATH } from "@/lib/rbac/permissions";
+import { PORTAL_HOME_HREF } from "@/lib/config/product";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -34,6 +35,10 @@ function isInternalStaff(roles: string[]): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/customer" || pathname.startsWith("/customer/")) {
+    return NextResponse.redirect(new URL(PORTAL_HOME_HREF, request.url));
+  }
+
   if (isSheetOnlyMode()) {
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     const session = token ? await verifySessionToken(token) : null;
@@ -60,7 +65,7 @@ export async function middleware(request: NextRequest) {
         pathname === "/supplier/forgot-password")
     ) {
       if (isInternalStaff(session.roles)) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL(PORTAL_HOME_HREF, request.url));
       }
       if (session.roles.includes("SUPPLIER_MASTER_ADMIN")) {
         return NextResponse.redirect(new URL("/supplier/master", request.url));
@@ -73,7 +78,7 @@ export async function middleware(request: NextRequest) {
       session &&
       isInternalStaff(session.roles)
     ) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL(PORTAL_HOME_HREF, request.url));
     }
 
     if (open) return nextWithPath(request);
@@ -81,7 +86,7 @@ export async function middleware(request: NextRequest) {
     if (session) {
       if (isInternalStaff(session.roles)) {
         if (!canAccessRoute(session.roles, pathname, session.allowedModules, session)) {
-          const fallback = isRetiredPortalPath(pathname) ? "/dashboard" : NO_MODULE_ACCESS_PATH;
+          const fallback = isRetiredPortalPath(pathname) ? PORTAL_HOME_HREF : NO_MODULE_ACCESS_PATH;
           return NextResponse.redirect(new URL(fallback, request.url));
         }
         return nextWithPath(request);
@@ -138,7 +143,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/supplier/login", request.url));
     }
     if (!session.roles.includes("SUPPLIER_USER") && !session.roles.includes("SUPER_ADMIN")) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL(PORTAL_HOME_HREF, request.url));
     }
     return NextResponse.next();
   }

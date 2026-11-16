@@ -1,23 +1,12 @@
 import type { AppModule } from "@/lib/rbac/modules";
 
-/** Menu operasional GBC — hanya modul ini yang tampil & bisa di-assign ke user. */
+/** Fase 1 Outbound: satu halaman operasional warehouse. */
 export const PORTAL_NAV_MODULES: {
   module: AppModule;
   label: string;
   href: string;
 }[] = [
-  { module: "dashboard", label: "Dashboard", href: "/dashboard" },
-  { module: "ocr_review", label: "Review Surat Jalan", href: "/ocr-review" },
-  { module: "sku_mapping", label: "Product SKU Mapping", href: "/sku-mapping" },
-  { module: "sku_mapping", label: "Katalog SKUS", href: "/skus" },
-  { module: "master_mapping", label: "Generator SKU", href: "/master-mapping" },
-  {
-    module: "supplier_data_mapping",
-    label: "Mapping Data Supplier",
-    href: "/supplier-data-mapping",
-  },
-  { module: "data_barang_masuk", label: "Data Barang Masuk", href: "/data-barang-masuk" },
-  { module: "users", label: "User & Role Management", href: "/users" },
+  { module: "sku_mapping", label: "Rekap Barang Keluar", href: "/skus" },
 ];
 
 /** Modul operasional (tanpa admin user). */
@@ -28,21 +17,12 @@ export function customerPortalHref(baseHref: string): string {
   return `/customer${baseHref}`;
 }
 
+/** Outbound: hanya menu gudang, tanpa mirror Customer / Admin di sidebar. */
 export const PORTAL_NAV_SECTIONS = [
   {
     id: "gudang" as const,
     title: "Gudang",
     items: PORTAL_NAV_OPERATIONS,
-  },
-  {
-    id: "customer" as const,
-    title: "Customer",
-    items: PORTAL_NAV_OPERATIONS.map((m) => ({ ...m, href: customerPortalHref(m.href) })),
-  },
-  {
-    id: "admin" as const,
-    title: "Admin",
-    items: PORTAL_NAV_MODULES.filter((m) => m.module === "users"),
   },
 ];
 
@@ -51,10 +31,17 @@ export const ASSIGNABLE_NAV_MODULES = PORTAL_NAV_MODULES;
 
 /** Halaman operasional per section (tanpa User & Role Management). */
 export const ASSIGNABLE_GUDANG_MODULES = PORTAL_NAV_OPERATIONS;
-export const ASSIGNABLE_CUSTOMER_MODULES = PORTAL_NAV_OPERATIONS;
+export const ASSIGNABLE_CUSTOMER_MODULES: typeof PORTAL_NAV_OPERATIONS = [];
 
-/** Route lama — tidak tampil di sidebar; dipakai agar middleware bisa menolak akses langsung via URL. */
+/** Route lama (inbound / fitur belum dipakai) — diblok middleware. */
 const RETIRED_PORTAL_ROUTES: { module: AppModule; href: string }[] = [
+  { module: "dashboard", href: "/dashboard" },
+  { module: "ocr_review", href: "/ocr-review" },
+  { module: "sku_mapping", href: "/sku-mapping" },
+  { module: "master_mapping", href: "/master-mapping" },
+  { module: "supplier_data_mapping", href: "/supplier-data-mapping" },
+  { module: "data_barang_masuk", href: "/data-barang-masuk" },
+  { module: "users", href: "/users" },
   { module: "nkb", href: "/nkb" },
   { module: "surat_jalan", href: "/surat-jalan" },
   { module: "purchase_orders", href: "/purchase-orders" },
@@ -92,10 +79,14 @@ export function parseAllowedModulesCell(raw: string | undefined | null): AppModu
   const text = String(raw ?? "").trim();
   if (!text) return [];
   const valid = new Set(PORTAL_NAV_MODULES.map((m) => m.module));
-  return text
+  const parsed = text
     .split(/[;|,]/)
     .map((s) => s.trim().toLowerCase() as AppModule)
     .filter((m) => valid.has(m));
+  if (parsed.length === 0 && text) {
+    return ["sku_mapping"];
+  }
+  return parsed;
 }
 
 export function formatAllowedModulesCell(modules: AppModule[]): string {

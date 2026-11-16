@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PORTAL_HOME_HREF } from "@/lib/config/product";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function LoginPage() {
       setError(data.error ?? "Login gagal");
       return;
     }
-    router.push(data.redirect ?? "/dashboard");
+    router.push(data.redirect ?? PORTAL_HOME_HREF);
     router.refresh();
   }
 

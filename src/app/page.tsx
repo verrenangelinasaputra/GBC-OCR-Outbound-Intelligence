@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
+import { PORTAL_HOME_HREF } from "@/lib/config/product";
 
 export default function Home() {
-  redirect("/dashboard");
+  redirect(PORTAL_HOME_HREF);
 }
