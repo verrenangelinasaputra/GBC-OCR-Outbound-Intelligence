@@ -30,11 +30,13 @@ export default async function UsersPage() {
     return (
       <ModuleListPage
         title="User & Role Management"
-        description="Warehouse: akun internal & gudang. Supplier: cek kode mapping vs nama di portal."
+        description="Akun warehouse & gudang — data sama dengan registrasi GBC Inbound."
       >
         <p className="mb-4 text-sm text-slate-600">
-          Tab <strong>Supplier</strong> juga mengatur <strong>mirror Drive</strong> per username (tab{" "}
-          <code>SupplierDrive</code>). Tab <strong>Warehouse</strong>: sheet{" "}
+          Tab <strong>Warehouse</strong> membaca spreadsheet kredensial yang sama dengan Inbound (registrasi di{" "}
+          <code>/register</code> Inbound atau Outbound menulis baris yang sama). Kolom{" "}
+          <code>gudang_tujuan</code> = gudang yang dipegang kepala gudang. Centang modul Outbound di{" "}
+          <code>allowed_modules_gudang</code> (mis. <code>sku_mapping;outbound_sj</code>). Sheet{" "}
           <a
             href={`https://docs.google.com/spreadsheets/d/${getWarehouseCredentialsSpreadsheetId()}/edit`}
             target="_blank"
@@ -42,12 +44,6 @@ export default async function UsersPage() {
             className="text-blue-600 hover:underline"
           >
             {getInternalUsersTab()}
-          </a>{" "}
-          (<code>allowed_modules_gudang</code> / <code>allowed_modules_customer</code> kolom M–N, pisah{" "}
-          <code>;</code>). Tab <strong>Supplier</strong>: cocokkan nama akun
-          portal dengan kode di{" "}
-          <a href="/supplier-data-mapping" className="text-blue-600 hover:underline">
-            Mapping Data Supplier
           </a>
           .
         </p>

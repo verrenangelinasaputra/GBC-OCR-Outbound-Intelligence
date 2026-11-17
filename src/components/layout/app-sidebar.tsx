@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutDashboard, Package, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { AppModule } from "@/lib/rbac/modules";
 import { PORTAL_NAV_SECTIONS } from "@/lib/rbac/nav-modules";
@@ -16,6 +16,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "/skus": Package,
   "/outbound-sj/new": Package,
   "/outbound-sj/verify": Package,
+  "/users": Users,
 };
 
 function iconForHref(href: string): LucideIcon {
@@ -39,13 +40,17 @@ export function AppSidebar({
   const activeAudience = portalAudienceFromPathname(pathname);
 
   const filterItems = useMemo(() => {
-    return (items: { href: string; label: string; module: AppModule }[]): NavItem[] => {
+    return (
+      items: { href: string; label: string; module: AppModule }[],
+      sectionId: (typeof PORTAL_NAV_SECTIONS)[number]["id"]
+    ): NavItem[] => {
       const mapped = items.map((m) => ({
         href: m.href,
         label: m.label,
         module: m.module,
         icon: iconForHref(m.href),
       }));
+      if (sectionId === "admin") return isSuperAdmin ? mapped : [];
       if (isSuperAdmin) return mapped;
       const mods = allowedModulesGudang ?? [];
       if (usesPerUserModuleAccess(roles)) {
@@ -61,7 +66,7 @@ export function AppSidebar({
   const sections = useMemo(() => {
     return PORTAL_NAV_SECTIONS.map((section) => ({
       ...section,
-      items: filterItems(section.items),
+      items: filterItems(section.items, section.id),
     })).filter((s) => s.items.length > 0);
   }, [filterItems]);
 

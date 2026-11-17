@@ -9,6 +9,7 @@ export const PORTAL_NAV_MODULES: {
   { module: "sku_mapping", label: "Rekap SKUS", href: "/skus" },
   { module: "outbound_sj", label: "Buat Surat Keluar (SKUS)", href: "/outbound-sj/new" },
   { module: "outbound_sj", label: "Pengecekkan Gudang Utama", href: "/outbound-sj/verify" },
+  { module: "users", label: "User & Role Management", href: "/users" },
 ];
 
 /** Modul operasional (tanpa admin user). */
@@ -19,12 +20,16 @@ export function customerPortalHref(baseHref: string): string {
   return `/customer${baseHref}`;
 }
 
-/** Outbound: hanya menu gudang, tanpa mirror Customer / Admin di sidebar. */
 export const PORTAL_NAV_SECTIONS = [
   {
     id: "gudang" as const,
     title: "Gudang",
     items: PORTAL_NAV_OPERATIONS,
+  },
+  {
+    id: "admin" as const,
+    title: "Admin",
+    items: PORTAL_NAV_MODULES.filter((m) => m.module === "users"),
   },
 ];
 
@@ -43,7 +48,6 @@ const RETIRED_PORTAL_ROUTES: { module: AppModule; href: string }[] = [
   { module: "master_mapping", href: "/master-mapping" },
   { module: "supplier_data_mapping", href: "/supplier-data-mapping" },
   { module: "data_barang_masuk", href: "/data-barang-masuk" },
-  { module: "users", href: "/users" },
   { module: "nkb", href: "/nkb" },
   { module: "surat_jalan", href: "/surat-jalan" },
   { module: "purchase_orders", href: "/purchase-orders" },
