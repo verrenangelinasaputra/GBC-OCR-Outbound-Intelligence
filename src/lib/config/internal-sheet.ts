@@ -5,7 +5,7 @@ export function getInternalSheetId(): string {
 }
 
 export function getInternalUsersTab(): string {
-  return process.env.INTERNAL_SHEET_TAB?.trim() || "Users";
+  return process.env.INTERNAL_SHEET_TAB?.trim() || "Sheet1";
 }
 
 /** Login admin/internal dari spreadsheet (tanpa Supabase). */

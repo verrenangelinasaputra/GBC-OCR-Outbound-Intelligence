@@ -49,6 +49,16 @@ export default async function OutboundSjDetailPage({ params }: { params: Promise
             <dt className="text-slate-500">Dibuat oleh</dt>
             <dd className="font-medium">{doc.createdBy}</dd>
           </div>
+          {doc.skusDriveUrl ? (
+            <div className="sm:col-span-2">
+              <dt className="text-slate-500">Drive (SKUS)</dt>
+              <dd>
+                <a href={doc.skusDriveUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
+                  Buka folder / file di Google Drive
+                </a>
+              </dd>
+            </div>
+          ) : null}
         </dl>
         <OutboundSjDetailActions doc={doc} />
         {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -26,9 +26,11 @@ export type OutboundSjDocument = {
   kepada: string;
   alamat: string;
   lines: OutboundSjLine[];
+  /** Link file PNG SKUS di Drive (setelah kirim verifikasi). */
+  skusDriveUrl: string;
 };
 
 export type OutboundSjCreateInput = Omit<
   OutboundSjDocument,
-  "rowNumber" | "docId" | "status" | "createdAt" | "createdBy" | "verifiedAt" | "verifiedBy"
+  "rowNumber" | "docId" | "status" | "createdAt" | "createdBy" | "verifiedAt" | "verifiedBy" | "skusDriveUrl"
 >;

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { OutboundSjLine } from "@/lib/outbound-sj/types";
-import { SUPPLIER_GUDANG_OPTIONS } from "@/lib/config/supplier-gudang";
+import { SUPPLIER_GUDANG_WAREHOUSE_OPTIONS } from "@/lib/config/supplier-gudang";
 
 const emptyLine = (): OutboundSjLine => ({
   banyaknya: "",
@@ -24,7 +24,7 @@ type ProductHit = {
 
 export function OutboundSjForm() {
   const router = useRouter();
-  const [gudang, setGudang] = useState<string>(SUPPLIER_GUDANG_OPTIONS[0] ?? "");
+  const [gudang, setGudang] = useState<string>(SUPPLIER_GUDANG_WAREHOUSE_OPTIONS[0] ?? "");
   const [tanggal, setTanggal] = useState(() => new Date().toISOString().slice(0, 10));
   const [noSj, setNoSj] = useState("");
   const [noPo, setNoPo] = useState("");
@@ -95,7 +95,7 @@ export function OutboundSjForm() {
       <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
         <Field label="Gudang">
           <select className={inputClass} value={gudang} onChange={(e) => setGudang(e.target.value)} required>
-            {SUPPLIER_GUDANG_OPTIONS.map((g) => (
+            {SUPPLIER_GUDANG_WAREHOUSE_OPTIONS.map((g) => (
               <option key={g} value={g}>
                 {g}
               </option>

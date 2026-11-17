@@ -24,6 +24,7 @@ const HEADERS = [
   "kepada",
   "alamat",
   "lines_json",
+  "skus_drive_url",
 ] as const;
 
 function quoteTab(tab: string): string {
@@ -52,14 +53,24 @@ async function ensureTab(sheets: ReturnType<typeof google.sheets>, sheetId: stri
       requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
     });
   }
-  const head = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${quoteTab(tab)}!A1:N1` });
+  const head = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${quoteTab(tab)}!A1:O1` });
   const first = String(head.data.values?.[0]?.[0] ?? "").trim().toLowerCase();
   if (first !== "doc_id") {
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `${quoteTab(tab)}!A1:N1`,
+      range: `${quoteTab(tab)}!A1:O1`,
       valueInputOption: "RAW",
       requestBody: { values: [Array.from(HEADERS)] },
+    });
+    return;
+  }
+  const headerRow = head.data.values?.[0] ?? [];
+  if (String(headerRow[14] ?? "").trim().toLowerCase() !== "skus_drive_url") {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${quoteTab(tab)}!O1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [["skus_drive_url"]] },
     });
   }
 }
@@ -89,6 +100,7 @@ function parseRow(rowNumber: number, row: string[]): OutboundSjDocument | null {
     kepada: String(row[11] ?? ""),
     alamat: String(row[12] ?? ""),
     lines,
+    skusDriveUrl: String(row[14] ?? "").trim(),
   };
 }
 
@@ -108,6 +120,7 @@ function toValues(doc: OutboundSjDocument): string[] {
     doc.kepada,
     doc.alamat,
     JSON.stringify(doc.lines),
+    doc.skusDriveUrl ?? "",
   ];
 }
 
@@ -119,7 +132,7 @@ export async function listOutboundSjDocuments(filter?: {
     await ensureTab(sheets, sheetId, tab);
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `${quoteTab(tab)}!A2:N`,
+      range: `${quoteTab(tab)}!A2:O`,
     });
     const rows = res.data.values ?? [];
     const statuses = filter?.status
@@ -158,13 +171,14 @@ export async function createOutboundSjDocument(
     verifiedAt: "",
     verifiedBy: "",
     ...input,
+    skusDriveUrl: "",
     lines: input.lines.filter((l) => l.namaBarang.trim() || l.jumlah.trim()),
   };
   const { sheets, sheetId, tab } = await sheetsClient();
   await ensureTab(sheets, sheetId, tab);
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: `${quoteTab(tab)}!A:N`,
+    range: `${quoteTab(tab)}!A:O`,
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [toValues(doc)] },
@@ -181,17 +195,23 @@ export async function updateOutboundSjRow(doc: OutboundSjDocument): Promise<void
   const { sheets, sheetId, tab } = await sheetsClient();
   await sheets.spreadsheets.values.update({
     spreadsheetId: sheetId,
-    range: `${quoteTab(tab)}!A${doc.rowNumber}:N${doc.rowNumber}`,
+    range: `${quoteTab(tab)}!A${doc.rowNumber}:O${doc.rowNumber}`,
     valueInputOption: "RAW",
     requestBody: { values: [toValues(doc)] },
   });
 }
 
-export async function submitOutboundSjForVerification(docId: string): Promise<OutboundSjDocument> {
+export async function submitOutboundSjForVerification(
+  docId: string,
+  options?: { skusDriveUrl?: string }
+): Promise<OutboundSjDocument> {
   const doc = await getOutboundSjDocument(docId);
   if (!doc) throw new Error("Dokumen tidak ditemukan.");
   if (doc.status !== "SKUS_DRAFT") throw new Error("Hanya draft SKUS yang bisa dikirim.");
   doc.status = "SKUS_SUBMITTED";
+  if (options?.skusDriveUrl?.trim()) {
+    doc.skusDriveUrl = options.skusDriveUrl.trim();
+  }
   await updateOutboundSjRow(doc);
   return doc;
 }

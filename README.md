@@ -3,7 +3,7 @@
 Fork UI/auth dari **GBC Inbound Intelligence**. Fase awal: **register & login supplier/warehouse** memakai **spreadsheet kredensial yang sama** dengan Inbound (tanpa akun ganda).
 
 - Supplier: `SUPPLIER_SHEET_ID` → [156m4HFA…](https://docs.google.com/spreadsheets/d/156m4HFAUnqubtCJumBJZ9BCCel_kNVcU_ZV9kHi4HtY/edit)
-- Warehouse: `CREDENTIALS_SHEET_ID` → [1CNmLX2Q…](https://docs.google.com/spreadsheets/d/1CNmLX2Qca-9GxDJTh77W8VaVaDAcMchqj7tzeeYEyZw/edit)
+- Warehouse: `CREDENTIALS_SHEET_ID` → [spreadsheet warehouse](https://docs.google.com/spreadsheets/d/1PTxO6HbOccYn30g1l7SaGpGIcV0PBcuLmqzC3me5GYM/edit) — tab **Sheet1**
 
 Halaman daftar: `/supplier/register` dan `/register`. Cookie sesi: `gbc_outbound_session` (terpisah dari Inbound).
 
@@ -208,7 +208,7 @@ Tanpa migrate + seed, login `admin` / password seed akan gagal (user belum ada d
 Cocok untuk **pilot upload Surat Jalan di Vercel** tanpa PostgreSQL:
 
 - **Bisa:** `/supplier/register` → kode email dari **nomarcengkareng@gmail.com** → login username + password → upload → OCR Gemini → spreadsheet operasional + Drive.
-- **Warehouse** (`/login`, `/register`): [Warehouse Credentials](https://docs.google.com/spreadsheets/d/1CNmLX2Qca-9GxDJTh77W8VaVaDAcMchqj7tzeeYEyZw/edit) — tab **Users** + **AuthCodes** (sama pola supplier).
+- **Warehouse** (`/login`, `/register`): [Warehouse Credentials](https://docs.google.com/spreadsheets/d/1PTxO6HbOccYn30g1l7SaGpGIcV0PBcuLmqzC3me5GYM/edit) — tab **Sheet1** + **AuthCodes** (sama dengan Inbound).
 - **Supplier** (`/supplier/*`): [Supplier Credentials](https://docs.google.com/spreadsheets/d/156m4HFAUnqubtCJumBJZ9BCCel_kNVcU_ZV9kHi4HtY/edit) — tab **Users** + **AuthCodes** (`SUPPLIER_SHEET_ID`).
 - Inisialisasi tab warehouse: `npm run credentials:init-warehouse` · cek akses: `npm run credentials:peek`.
 - **Upload SJ:** hanya menambah baris ke tab data OCR (ringan). Tab **Summary / monitoring** diperbarui dengan `npm run sheet:monitoring` — jangan set `GOOGLE_SHEET_MONITORING_ON_UPLOAD=true` di production (memicu error kuota Sheets).
@@ -234,9 +234,9 @@ Env **Vercel** (Production):
 | `GOOGLE_SHEET_TAB` | `Sheet1` |
 | `SKU_MASTER_SHEET_ID` | `[V2] GENERATOR SKU` — default `1vbCQDgMRfUb8YKZ_E6DVHSa-lS7iWUAhylwImnJGJsw` (`/master-mapping` generator) |
 | `SKU_REKAP_SHEET_ID` | Opsional — default mengikuti `SKU_MASTER_SHEET_ID` (v2). Isi ID legacy hanya jika katalog masih di file lama |
-| `CREDENTIALS_SHEET_ID` | `1CNmLX2Qca-9GxDJTh77W8VaVaDAcMchqj7tzeeYEyZw` (warehouse) |
+| `CREDENTIALS_SHEET_ID` | `1PTxO6HbOccYn30g1l7SaGpGIcV0PBcuLmqzC3me5GYM` (warehouse) |
 | `SUPPLIER_SHEET_ID` | `156m4HFAUnqubtCJumBJZ9BCCel_kNVcU_ZV9kHi4HtY` (supplier — terpisah) |
-| `INTERNAL_SHEET_TAB` | `Users` |
+| `INTERNAL_SHEET_TAB` | `Sheet1` |
 | `INTERNAL_AUTH_CODES_TAB` | `AuthCodes` |
 | `SUPPLIER_USERS_TAB` | `Users` |
 | `SUPPLIER_AUTH_CODES_TAB` | `AuthCodes` |
@@ -251,7 +251,7 @@ Env **Vercel** (Production):
 
 Urutan setup (jangan dilewati):
 
-1. Spreadsheet **warehouse** [1CNmLX…](https://docs.google.com/spreadsheets/d/1CNmLX2Qca-9GxDJTh77W8VaVaDAcMchqj7tzeeYEyZw/edit) + **supplier** [156m4HFA…](https://docs.google.com/spreadsheets/d/156m4HFAUnqubtCJumBJZ9BCCel_kNVcU_ZV9kHi4HtY/edit) → **Share** → **Restricted**.
+1. Spreadsheet **warehouse** [1PTxO6Hb…](https://docs.google.com/spreadsheets/d/1PTxO6HbOccYn30g1l7SaGpGIcV0PBcuLmqzC3me5GYM/edit) + **supplier** [156m4HFA…](https://docs.google.com/spreadsheets/d/156m4HFAUnqubtCJumBJZ9BCCel_kNVcU_ZV9kHi4HtY/edit) → **Share** → **Restricted**.
 2. Share keduanya sebagai **Editor** ke email `client_email` service account.
 3. Jalankan `npm run credentials:init-warehouse` sekali (buat tab **Users** / **AuthCodes** di spreadsheet warehouse).
 4. Di Google Account **nomarcengkareng@gmail.com**: aktifkan 2-Step Verification → **App passwords** → buat password untuk Mail → tempel ke `SMTP_PASS` (bukan password login Gmail).

@@ -19,7 +19,12 @@ export function OutboundSjDetailActions({ doc }: { doc: OutboundSjDocument }) {
       setMessage(data.error ?? "Gagal mengirim.");
       return;
     }
-    setMessage("Dikirim ke Pengecekkan Gudang Utama.");
+    const driveUrl = typeof data.drive?.fileUrl === "string" ? data.drive.fileUrl : "";
+    setMessage(
+      driveUrl
+        ? "Dikirim ke verifikasi. Gambar SKUS tersimpan di Drive gudang."
+        : "Dikirim ke Pengecekkan Gudang Utama."
+    );
     router.refresh();
   }
 
@@ -65,8 +70,18 @@ export function OutboundSjDetailActions({ doc }: { doc: OutboundSjDocument }) {
         rel="noreferrer"
         className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
       >
-        Unduh / lihat gambar SJ
+        {doc.status === "SKUS_DRAFT" ? "Lihat Surat Keluar (draft)" : "Lihat / unduh gambar SK"}
       </a>
+      {doc.skusDriveUrl ? (
+        <a
+          href={doc.skusDriveUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-100"
+        >
+          Buka file di Drive
+        </a>
+      ) : null}
       {message && <p className="text-sm text-slate-600">{message}</p>}
     </div>
   );

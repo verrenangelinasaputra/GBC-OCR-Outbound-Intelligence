@@ -1,6 +1,6 @@
 /** Spreadsheet akun warehouse / internal (`/login`, `/register`). */
 export const DEFAULT_WAREHOUSE_CREDENTIALS_SHEET_ID =
-  "1CNmLX2Qca-9GxDJTh77W8VaVaDAcMchqj7tzeeYEyZw";
+  "1PTxO6HbOccYn30g1l7SaGpGIcV0PBcuLmqzC3me5GYM";
 
 /** Spreadsheet akun supplier (portal `/supplier/*`). */
 export const DEFAULT_SUPPLIER_CREDENTIALS_SHEET_ID =
