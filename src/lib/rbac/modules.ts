@@ -4,6 +4,7 @@ export const MODULES = [
   "surat_jalan",
   "ocr_review",
   "sku_mapping",
+  "outbound_sj",
   "master_mapping",
   "supplier_data_mapping",
   "data_barang_masuk",

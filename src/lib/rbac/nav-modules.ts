@@ -6,7 +6,9 @@ export const PORTAL_NAV_MODULES: {
   label: string;
   href: string;
 }[] = [
-  { module: "sku_mapping", label: "Rekap Barang Keluar", href: "/skus" },
+  { module: "sku_mapping", label: "Rekap SKUS", href: "/skus" },
+  { module: "outbound_sj", label: "Buat Surat Keluar (SKUS)", href: "/outbound-sj/new" },
+  { module: "outbound_sj", label: "Pengecekkan Gudang Utama", href: "/outbound-sj/verify" },
 ];
 
 /** Modul operasional (tanpa admin user). */
@@ -84,7 +86,7 @@ export function parseAllowedModulesCell(raw: string | undefined | null): AppModu
     .map((s) => s.trim().toLowerCase() as AppModule)
     .filter((m) => valid.has(m));
   if (parsed.length === 0 && text) {
-    return ["sku_mapping"];
+    return ["sku_mapping", "outbound_sj"];
   }
   return parsed;
 }

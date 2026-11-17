@@ -14,6 +14,8 @@ import { PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/config/product";
 
 const NAV_ICONS: Record<string, LucideIcon> = {
   "/skus": Package,
+  "/outbound-sj/new": Package,
+  "/outbound-sj/verify": Package,
 };
 
 function iconForHref(href: string): LucideIcon {

@@ -310,7 +310,11 @@ function stackedHeaderText(x: number, startY: number, lines: string[], fontSize:
 }
 
 /** Gambar revisi SJ — grid hijau mirip SJ fisik. */
-export function buildSuratJalanRevisionSvg(doc: OcrSheetDocumentDetail, revisionLabel?: string): string {
+export function buildSuratJalanRevisionSvg(
+  doc: OcrSheetDocumentDetail,
+  revisionLabel?: string,
+  footerNote = "Direvisi via GBC Inbound Intelligence"
+): string {
   const w = CANVAS_W;
   const revTag = revisionLabel?.trim() || "[REVISI GUDANG]";
 
@@ -392,7 +396,7 @@ export function buildSuratJalanRevisionSvg(doc: OcrSheetDocumentDetail, revision
     `<line x1="360" y1="${footY + 36}" x2="540" y2="${footY + 36}" stroke="${GREEN}"/>`,
     `<line x1="680" y1="${footY + 36}" x2="860" y2="${footY + 36}" stroke="${GREEN}"/>`,
     footerMetaBlock.svg,
-    svgTextMuted(40, footerMetaBlock.nextY + 4, "Direvisi via GBC Inbound Intelligence", 9),
+    svgTextMuted(40, footerMetaBlock.nextY + 4, footerNote, 9),
   ].join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -408,11 +412,13 @@ export function buildSuratJalanRevisionSvg(doc: OcrSheetDocumentDetail, revision
 
 export async function renderSuratJalanRevisionPng(
   doc: OcrSheetDocumentDetail,
-  revisionSequence?: number
+  revisionSequence?: number,
+  options?: { revisionLabel?: string; footerNote?: string }
 ): Promise<Buffer> {
   const label =
-    revisionSequence && revisionSequence > 0 ? `[REVISI ${revisionSequence} GUDANG]` : "[REVISI GUDANG]";
-  const svg = buildSuratJalanRevisionSvg(doc, label);
+    options?.revisionLabel?.trim() ||
+    (revisionSequence && revisionSequence > 0 ? `[REVISI ${revisionSequence} GUDANG]` : "[REVISI GUDANG]");
+  const svg = buildSuratJalanRevisionSvg(doc, label, options?.footerNote);
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 

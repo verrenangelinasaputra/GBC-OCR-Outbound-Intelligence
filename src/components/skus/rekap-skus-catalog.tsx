@@ -115,27 +115,29 @@ export function RekapSkusCatalog() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cari di tabel</p>
-        <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-          <label className="flex min-w-[16rem] flex-1 flex-col gap-1">
-            <span className="text-sm text-slate-700">Kata kunci</span>
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <p className="text-sm font-semibold text-slate-800">Cari di tabel</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Pisahkan kata dengan spasi — semua kata harus cocok (AND).
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_11.5rem_auto] md:items-end">
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">Kata kunci</span>
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="SKUS, nama internal, no, jumlah varian…"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               autoComplete="off"
             />
-            <span className="text-xs text-slate-500">Beberapa kata = semuanya harus cocok (AND).</span>
           </label>
-          <label className="flex w-full flex-col gap-1 sm:w-48">
-            <span className="text-sm text-slate-700">Sumber tab</span>
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">Sumber tab</span>
             <select
               value={sourceTab}
               onChange={(e) => setSourceTab(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               <option value="">Semua tab</option>
               {sourceTabOptions.map((tab) => (
@@ -145,24 +147,29 @@ export function RekapSkusCatalog() {
               ))}
             </select>
           </label>
-          <div className="flex flex-wrap gap-2">
-            {filterActive && (
+          <div className="flex flex-col gap-2 md:min-w-[12.5rem]">
+            <span className="mb-1.5 hidden text-sm font-medium text-slate-700 md:block md:invisible" aria-hidden>
+              Aksi
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {filterActive && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="h-10 shrink-0 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Hapus filter
+                </button>
+              )}
               <button
                 type="button"
-                onClick={clearFilters}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                disabled={loading}
+                onClick={() => void load(true)}
+                className="h-10 shrink-0 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
               >
-                Hapus filter
+                {loading ? "Memuat…" : "Refresh"}
               </button>
-            )}
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => void load(true)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-            >
-              {loading ? "Memuat…" : "Refresh spreadsheet"}
-            </button>
+            </div>
           </div>
         </div>
       </div>
