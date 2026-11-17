@@ -25,7 +25,7 @@ function toOcrDetail(doc: OutboundSjDocument): OcrSheetDocumentDetail {
     fileUrl: "",
     kendaraanDriver: "",
     catatan: "",
-    status: "OK",
+    status: line.unavailable ? "NA" : "OK",
     statusReview: doc.status,
     linkRevisi: "",
     sampleType: "",
@@ -60,11 +60,33 @@ function toOcrDetail(doc: OutboundSjDocument): OcrSheetDocumentDetail {
   };
 }
 
-export async function renderOutboundSuratKeluarPng(doc: OutboundSjDocument): Promise<Buffer> {
+export async function renderOutboundSuratKeluarPng(
+  doc: OutboundSjDocument,
+  options?: { revisionSequence?: number; revisionLabel?: string; footerNote?: string }
+): Promise<Buffer> {
   const isSkul = doc.status === "SKUL";
-  const revisionLabel = isSkul ? "[SKUL] GUDANG" : "[SKUS] GUDANG";
-  const footerNote = isSkul
-    ? "Surat keluar SKUL — GBC Outbound Intelligence"
-    : "Surat keluar SKUS (belum SKUL) — GBC Outbound Intelligence";
-  return renderSuratJalanRevisionPng(toOcrDetail(doc), undefined, { revisionLabel, footerNote });
+  const isRevision =
+    doc.status === "SKUS_REVISION_REQUESTED" ||
+    doc.lines.some((l) => l.unavailable) ||
+    Boolean(options?.revisionSequence);
+  const revisionLabel =
+    options?.revisionLabel?.trim() ||
+    (isSkul
+      ? "[SKUL] GUDANG"
+      : isRevision
+        ? options?.revisionSequence
+          ? `[REVISI ${options.revisionSequence} GUDANG UTAMA]`
+          : "[REVISI GUDANG UTAMA]"
+        : "[SKUS] GUDANG");
+  const footerNote =
+    options?.footerNote?.trim() ||
+    (isSkul
+      ? "Surat keluar SKUL — GBC Outbound Intelligence"
+      : isRevision
+        ? "Revisi stok tidak tersedia — dikembalikan ke gudang asal"
+        : "Surat keluar SKUS (belum SKUL) — GBC Outbound Intelligence");
+  return renderSuratJalanRevisionPng(toOcrDetail(doc), options?.revisionSequence, {
+    revisionLabel,
+    footerNote,
+  });
 }

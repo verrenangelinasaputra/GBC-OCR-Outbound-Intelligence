@@ -191,13 +191,21 @@ function buildTableGrid(rowHeights: number[]): string {
   return lines.join("\n");
 }
 
-function measureTableRowHeight(line: {
+type RevisionTableLine = {
   banyaknya: string;
   isi: string;
   namaBarang: string;
   jumlah: string;
   keterangan: string;
-}): number {
+  status?: string;
+};
+
+function lineUnavailable(line: RevisionTableLine): boolean {
+  const s = String(line.status ?? "").trim().toUpperCase();
+  return s === "NA" || s === "UNAVAILABLE" || s === "TIDAK_TERSEDIA";
+}
+
+function measureTableRowHeight(line: RevisionTableLine): number {
   const fsQty = 11;
   const fsName = 10;
   const fsNote = 10;
@@ -213,18 +221,8 @@ function measureTableRowHeight(line: {
   return rowHeightForLineCount(maxLines, maxFont);
 }
 
-function renderTableRow(
-  index: number,
-  line: {
-    banyaknya: string;
-    isi: string;
-    namaBarang: string;
-    jumlah: string;
-    keterangan: string;
-  },
-  rowTop: number,
-  rowHeight: number
-): string {
+function renderTableRow(index: number, line: RevisionTableLine, rowTop: number, rowHeight: number): string {
+  const unavailable = lineUnavailable(line);
   const fsNo = 11;
   const fsQty = 11;
   const fsName = 10;
@@ -275,13 +273,24 @@ function renderTableRow(
   const blockH = maxFont + (maxLines - 1) * lineStep;
   const firstBaseline = rowTop + (rowHeight - blockH) / 2 + maxFont;
 
-  return cols
-    .map((col) =>
-      svgTextLines(col.lines, col.x, firstBaseline, col.fontSize, {
+  const textParts = cols
+    .map((col) => {
+      if (unavailable) {
+        return col.lines
+          .map((ln, i) => svgTextMuted(col.x, firstBaseline + i * col.fontSize * LINE_HEIGHT_RATIO, ln, col.fontSize))
+          .join("\n");
+      }
+      return svgTextLines(col.lines, col.x, firstBaseline, col.fontSize, {
         anchor: col.anchor === "middle" ? "middle" : "start",
-      })
-    )
+      });
+    })
     .join("\n");
+
+  if (!unavailable) return textParts;
+
+  const strikeY = rowTop + rowHeight / 2;
+  const strike = `<line x1="${COL_X[0] + 4}" y1="${strikeY}" x2="${COL_X[6] - 4}" y2="${strikeY}" stroke="#c62828" stroke-width="2.5"/>`;
+  return `${strike}\n${textParts}`;
 }
 
 /** @deprecated Gunakan layout baris dinamis; dipakai test regresi index baris. */

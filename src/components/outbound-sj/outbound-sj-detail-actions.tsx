@@ -28,20 +28,6 @@ export function OutboundSjDetailActions({ doc }: { doc: OutboundSjDocument }) {
     router.refresh();
   }
 
-  async function approveSkul() {
-    setLoading(true);
-    setMessage("");
-    const res = await fetch(`/api/outbound-sj/${doc.docId}/verify`, { method: "POST" });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setMessage(data.error ?? "Gagal verifikasi.");
-      return;
-    }
-    setMessage("Disetujui — status SKUL.");
-    router.refresh();
-  }
-
   return (
     <div className="flex flex-wrap items-center gap-3">
       {doc.status === "SKUS_DRAFT" && (
@@ -54,16 +40,6 @@ export function OutboundSjDetailActions({ doc }: { doc: OutboundSjDocument }) {
           Kirim ke verifikasi gudang utama
         </button>
       )}
-      {doc.status === "SKUS_SUBMITTED" && (
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void approveSkul()}
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-        >
-          Setujui → konversi SKUL
-        </button>
-      )}
       <a
         href={`/api/outbound-sj/${doc.docId}/image`}
         target="_blank"
@@ -72,6 +48,26 @@ export function OutboundSjDetailActions({ doc }: { doc: OutboundSjDocument }) {
       >
         {doc.status === "SKUS_DRAFT" ? "Lihat Surat Keluar (draft)" : "Lihat / unduh gambar SK"}
       </a>
+      {doc.skulDriveUrl ? (
+        <a
+          href={doc.skulDriveUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-900 hover:bg-green-100"
+        >
+          Buka SKUL di Drive
+        </a>
+      ) : null}
+      {doc.revisionDriveUrl ? (
+        <a
+          href={doc.revisionDriveUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+        >
+          Buka revisi di Drive
+        </a>
+      ) : null}
       {doc.skusDriveUrl ? (
         <a
           href={doc.skusDriveUrl}

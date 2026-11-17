@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SUPPLIER_GUDANG_OPTIONS } from "@/lib/config/supplier-gudang";
+import { SUPPLIER_PORTAL_ENABLED } from "@/lib/config/product";
 
 export function InternalRegisterForm() {
   const router = useRouter();
@@ -156,12 +157,14 @@ export function InternalRegisterForm() {
           </form>
         )}
 
-        <p className="mt-6 text-center text-xs text-slate-500">
-          Supplier?{" "}
-          <Link href="/supplier/register" className="text-blue-600 hover:underline">
-            Daftar portal supplier
-          </Link>
-        </p>
+        {SUPPLIER_PORTAL_ENABLED ? (
+          <p className="mt-6 text-center text-xs text-slate-500">
+            Supplier?{" "}
+            <Link href="/supplier/register" className="text-blue-600 hover:underline">
+              Daftar portal supplier
+            </Link>
+          </p>
+        ) : null}
         <p className="mt-2 text-center text-sm">
           <Link href="/login" className="text-blue-600 hover:underline">
             Sudah punya akun? Login

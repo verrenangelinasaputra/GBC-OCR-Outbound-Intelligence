@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 import { isSheetOnlyMode } from "@/lib/config/app-mode";
 import { canAccessRoute, isRetiredPortalPath, NO_MODULE_ACCESS_PATH } from "@/lib/rbac/permissions";
-import { PORTAL_HOME_HREF } from "@/lib/config/product";
+import { PORTAL_HOME_HREF, SUPPLIER_PORTAL_ENABLED } from "@/lib/config/product";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -32,11 +32,30 @@ function isInternalStaff(roles: string[]): boolean {
   return roles.some((r) => INTERNAL_ROLES.includes(r as (typeof INTERNAL_ROLES)[number]));
 }
 
+const SUPPLIER_AUTH_PATHS = [
+  "/supplier/login",
+  "/supplier/register",
+  "/supplier/forgot-password",
+] as const;
+
+function isSupplierAuthPath(pathname: string): boolean {
+  return SUPPLIER_AUTH_PATHS.some((p) => pathname === p);
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname === "/customer" || pathname.startsWith("/customer/")) {
     return NextResponse.redirect(new URL(PORTAL_HOME_HREF, request.url));
+  }
+
+  if (!SUPPLIER_PORTAL_ENABLED) {
+    if (isSupplierAuthPath(pathname) || pathname === "/supplier" || pathname.startsWith("/supplier/")) {
+      if (pathname.startsWith("/api/supplier/")) {
+        return NextResponse.json({ error: "Supplier portal tidak tersedia di Outbound." }, { status: 404 });
+      }
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   if (isSheetOnlyMode()) {

@@ -7,7 +7,12 @@ import { mapSheetApiError } from "@/lib/google-sheets/sheet-values";
 import { createGoogleSheetsAuthClient } from "@/lib/providers/google-workspace/client";
 import { getGoogleExportConfigOptional } from "@/lib/providers/google-workspace/config";
 import { googleConfigForSpreadsheet } from "@/lib/services/sku-rekap-catalog";
-import type { OutboundSjCreateInput, OutboundSjDocument, OutboundSjStatus } from "@/lib/outbound-sj/types";
+import type {
+  OutboundSjCreateInput,
+  OutboundSjDocument,
+  OutboundSjLinePatch,
+  OutboundSjStatus,
+} from "@/lib/outbound-sj/types";
 
 const HEADERS = [
   "doc_id",
@@ -25,7 +30,12 @@ const HEADERS = [
   "alamat",
   "lines_json",
   "skus_drive_url",
+  "skul_drive_url",
+  "revision_drive_url",
+  "revision_count",
 ] as const;
+
+const COL_RANGE = "A:R";
 
 function quoteTab(tab: string): string {
   return `'${tab.replace(/'/g, "''")}'`;
@@ -53,24 +63,31 @@ async function ensureTab(sheets: ReturnType<typeof google.sheets>, sheetId: stri
       requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
     });
   }
-  const head = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${quoteTab(tab)}!A1:O1` });
+  const head = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${quoteTab(tab)}!A1:${String.fromCharCode("A".charCodeAt(0) + HEADERS.length - 1)}1`,
+  });
   const first = String(head.data.values?.[0]?.[0] ?? "").trim().toLowerCase();
   if (first !== "doc_id") {
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `${quoteTab(tab)}!A1:O1`,
+      range: `${quoteTab(tab)}!A1:${String.fromCharCode("A".charCodeAt(0) + HEADERS.length - 1)}1`,
       valueInputOption: "RAW",
       requestBody: { values: [Array.from(HEADERS)] },
     });
     return;
   }
   const headerRow = head.data.values?.[0] ?? [];
-  if (String(headerRow[14] ?? "").trim().toLowerCase() !== "skus_drive_url") {
+  const headers = Array.from(HEADERS);
+  for (let i = 0; i < headers.length; i += 1) {
+    const want = headers[i]!.toLowerCase();
+    if (String(headerRow[i] ?? "").trim().toLowerCase() === want) continue;
+    const col = String.fromCharCode("A".charCodeAt(0) + i);
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `${quoteTab(tab)}!O1`,
+      range: `${quoteTab(tab)}!${col}1`,
       valueInputOption: "RAW",
-      requestBody: { values: [["skus_drive_url"]] },
+      requestBody: { values: [[headers[i]]] },
     });
   }
 }
@@ -101,6 +118,9 @@ function parseRow(rowNumber: number, row: string[]): OutboundSjDocument | null {
     alamat: String(row[12] ?? ""),
     lines,
     skusDriveUrl: String(row[14] ?? "").trim(),
+    skulDriveUrl: String(row[15] ?? "").trim(),
+    revisionDriveUrl: String(row[16] ?? "").trim(),
+    revisionCount: Number.parseInt(String(row[17] ?? "0"), 10) || 0,
   };
 }
 
@@ -121,6 +141,9 @@ function toValues(doc: OutboundSjDocument): string[] {
     doc.alamat,
     JSON.stringify(doc.lines),
     doc.skusDriveUrl ?? "",
+    doc.skulDriveUrl ?? "",
+    doc.revisionDriveUrl ?? "",
+    String(doc.revisionCount ?? 0),
   ];
 }
 
@@ -132,7 +155,7 @@ export async function listOutboundSjDocuments(filter?: {
     await ensureTab(sheets, sheetId, tab);
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `${quoteTab(tab)}!A2:O`,
+      range: `${quoteTab(tab)}!A2:R`,
     });
     const rows = res.data.values ?? [];
     const statuses = filter?.status
@@ -172,13 +195,16 @@ export async function createOutboundSjDocument(
     verifiedBy: "",
     ...input,
     skusDriveUrl: "",
+    skulDriveUrl: "",
+    revisionDriveUrl: "",
+    revisionCount: 0,
     lines: input.lines.filter((l) => l.namaBarang.trim() || l.jumlah.trim()),
   };
   const { sheets, sheetId, tab } = await sheetsClient();
   await ensureTab(sheets, sheetId, tab);
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: `${quoteTab(tab)}!A:O`,
+    range: `${quoteTab(tab)}!${COL_RANGE}`,
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [toValues(doc)] },
@@ -195,7 +221,7 @@ export async function updateOutboundSjRow(doc: OutboundSjDocument): Promise<void
   const { sheets, sheetId, tab } = await sheetsClient();
   await sheets.spreadsheets.values.update({
     spreadsheetId: sheetId,
-    range: `${quoteTab(tab)}!A${doc.rowNumber}:O${doc.rowNumber}`,
+    range: `${quoteTab(tab)}!A${doc.rowNumber}:R${doc.rowNumber}`,
     valueInputOption: "RAW",
     requestBody: { values: [toValues(doc)] },
   });
@@ -207,8 +233,15 @@ export async function submitOutboundSjForVerification(
 ): Promise<OutboundSjDocument> {
   const doc = await getOutboundSjDocument(docId);
   if (!doc) throw new Error("Dokumen tidak ditemukan.");
-  if (doc.status !== "SKUS_DRAFT") throw new Error("Hanya draft SKUS yang bisa dikirim.");
+  const allowed: OutboundSjStatus[] = ["SKUS_DRAFT", "SKUS_REVISION_REQUESTED"];
+  if (!allowed.includes(doc.status)) {
+    throw new Error("Hanya draft atau dokumen revisi yang bisa dikirim ulang ke verifikasi.");
+  }
+  const wasRevision = doc.status === "SKUS_REVISION_REQUESTED";
   doc.status = "SKUS_SUBMITTED";
+  if (wasRevision) {
+    doc.lines = doc.lines.map((l) => ({ ...l, unavailable: false }));
+  }
   if (options?.skusDriveUrl?.trim()) {
     doc.skusDriveUrl = options.skusDriveUrl.trim();
   }
@@ -216,13 +249,90 @@ export async function submitOutboundSjForVerification(
   return doc;
 }
 
-export async function approveOutboundSjAsSkul(docId: string, verifiedBy: string): Promise<OutboundSjDocument> {
+export function applyOutboundSjLinePatches(
+  doc: OutboundSjDocument,
+  patches: OutboundSjLinePatch[]
+): OutboundSjDocument {
+  const next = doc.lines.map((l) => ({ ...l }));
+  for (const patch of patches) {
+    const idx = patch.lineIndex;
+    if (idx < 0 || idx >= next.length) continue;
+    const line = next[idx]!;
+    if (patch.unavailable !== undefined) line.unavailable = patch.unavailable;
+    if (patch.keterangan !== undefined) line.keterangan = patch.keterangan;
+    if (patch.banyaknya !== undefined) line.banyaknya = patch.banyaknya;
+    if (patch.isi !== undefined) line.isi = patch.isi;
+    if (patch.namaBarang !== undefined) line.namaBarang = patch.namaBarang;
+    if (patch.jumlah !== undefined) line.jumlah = patch.jumlah;
+    if (line.unavailable && !String(line.keterangan ?? "").trim()) {
+      line.keterangan = "Tidak tersedia";
+    }
+    next[idx] = line;
+  }
+  return { ...doc, lines: next };
+}
+
+export async function updateOutboundSjDocumentContent(
+  docId: string,
+  input: { lines?: OutboundSjDocument["lines"]; kepada?: string; alamat?: string }
+): Promise<OutboundSjDocument> {
+  const doc = await getOutboundSjDocument(docId);
+  if (!doc) throw new Error("Dokumen tidak ditemukan.");
+  const editable: OutboundSjStatus[] = ["SKUS_DRAFT", "SKUS_REVISION_REQUESTED"];
+  if (!editable.includes(doc.status)) {
+    throw new Error("Dokumen tidak bisa diedit pada status ini.");
+  }
+  if (input.lines) doc.lines = input.lines;
+  if (input.kepada !== undefined) doc.kepada = input.kepada.trim();
+  if (input.alamat !== undefined) doc.alamat = input.alamat.trim();
+  await updateOutboundSjRow(doc);
+  return doc;
+}
+
+export async function approveOutboundSjAsSkul(
+  docId: string,
+  verifiedBy: string,
+  options?: { skulDriveUrl?: string }
+): Promise<OutboundSjDocument> {
   const doc = await getOutboundSjDocument(docId);
   if (!doc) throw new Error("Dokumen tidak ditemukan.");
   if (doc.status !== "SKUS_SUBMITTED") throw new Error("Hanya SKUS yang menunggu verifikasi yang bisa disetujui.");
+  const hasUnavailable = doc.lines.some((l) => l.unavailable);
+  if (hasUnavailable) {
+    throw new Error("Ada barang ditandai tidak tersedia — gunakan Kirim revisi ke gudang, bukan setujui SKUL.");
+  }
   doc.status = "SKUL";
   doc.verifiedAt = new Date().toISOString();
   doc.verifiedBy = verifiedBy;
+  if (options?.skulDriveUrl?.trim()) doc.skulDriveUrl = options.skulDriveUrl.trim();
   await updateOutboundSjRow(doc);
   return doc;
+}
+
+export async function requestOutboundSjRevision(
+  docId: string,
+  verifiedBy: string,
+  patches: OutboundSjLinePatch[],
+  options: { revisionDriveUrl: string }
+): Promise<OutboundSjDocument> {
+  const doc = await getOutboundSjDocument(docId);
+  if (!doc) throw new Error("Dokumen tidak ditemukan.");
+  if (doc.status !== "SKUS_SUBMITTED") throw new Error("Hanya SKUS menunggu verifikasi yang bisa direvisi.");
+  let updated = applyOutboundSjLinePatches(doc, patches);
+  const marked = updated.lines.filter((l) => l.unavailable);
+  if (!marked.length) {
+    throw new Error("Centang minimal satu barang tidak tersedia, atau setujui sebagai SKUL.");
+  }
+  for (const line of marked) {
+    if (!String(line.keterangan ?? "").trim()) {
+      throw new Error("Isi keterangan untuk setiap barang yang tidak tersedia.");
+    }
+  }
+  updated.status = "SKUS_REVISION_REQUESTED";
+  updated.verifiedAt = new Date().toISOString();
+  updated.verifiedBy = verifiedBy;
+  updated.revisionCount = (updated.revisionCount || 0) + 1;
+  updated.revisionDriveUrl = options.revisionDriveUrl.trim();
+  await updateOutboundSjRow(updated);
+  return updated;
 }

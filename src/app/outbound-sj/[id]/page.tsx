@@ -1,5 +1,7 @@
 import { ModuleListPage } from "@/components/layout/module-list-page";
 import { OutboundSjDetailActions } from "@/components/outbound-sj/outbound-sj-detail-actions";
+import { OutboundSjMainVerifyPanel } from "@/components/outbound-sj/outbound-sj-main-verify-panel";
+import { OutboundSjRevisionEditor } from "@/components/outbound-sj/outbound-sj-revision-editor";
 import { getSession } from "@/lib/auth/session";
 import { getOutboundSjDocument } from "@/lib/outbound-sj/sheet-store";
 import { hasPermission } from "@/lib/rbac/permissions";
@@ -10,6 +12,7 @@ import { notFound } from "next/navigation";
 const STATUS_LABEL: Record<string, string> = {
   SKUS_DRAFT: "SKUS (draft)",
   SKUS_SUBMITTED: "SKUS menunggu verifikasi",
+  SKUS_REVISION_REQUESTED: "Revisi — kembali ke gudang asal",
   SKUL: "SKUL (disetujui)",
 };
 
@@ -60,6 +63,14 @@ export default async function OutboundSjDetailPage({ params }: { params: Promise
             </div>
           ) : null}
         </dl>
+        {doc.status === "SKUS_SUBMITTED" &&
+        hasPermission(session.roles, "outbound_sj", "APPROVE", mods) ? (
+          <OutboundSjMainVerifyPanel doc={doc} />
+        ) : null}
+        {doc.status === "SKUS_REVISION_REQUESTED" &&
+        (doc.createdBy === session.username || session.roles.includes("SUPER_ADMIN")) ? (
+          <OutboundSjRevisionEditor doc={doc} />
+        ) : null}
         <OutboundSjDetailActions doc={doc} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

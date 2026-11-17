@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PORTAL_HOME_HREF } from "@/lib/config/product";
+import { PORTAL_HOME_HREF, SUPPLIER_PORTAL_ENABLED } from "@/lib/config/product";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +35,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-xl font-semibold text-slate-900">GBC Outbound Intelligence</h1>
-        <p className="mt-1 text-sm text-slate-500">Login internal — Admin, DBM & Gudang (bukan portal supplier)</p>
+        <p className="mt-1 text-sm text-slate-500">Login gudang & admin warehouse (GBC Outbound)</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
             <label className="text-sm font-medium text-slate-700">Username</label>
@@ -67,26 +67,32 @@ export default function LoginPage() {
             {loading ? "Memproses..." : "Login"}
           </button>
         </form>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4">
           <Link
             href="/register"
-            className="rounded-lg border border-slate-300 py-2.5 text-center text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="block w-full rounded-lg border border-slate-300 py-2.5 text-center text-sm font-medium text-slate-800 hover:bg-slate-50"
           >
-            Register
-          </Link>
-          <Link
-            href="/supplier/forgot-password"
-            className="rounded-lg border border-slate-300 py-2.5 text-center text-sm font-medium text-slate-800 hover:bg-slate-50"
-          >
-            Forgot password
+            Register warehouse
           </Link>
         </div>
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Supplier?{" "}
-          <a href="/supplier/login" className="text-blue-600 hover:underline">
-            Portal Supplier
-          </a>
-        </p>
+        {SUPPLIER_PORTAL_ENABLED ? (
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <Link
+                href="/supplier/forgot-password"
+                className="rounded-lg border border-slate-300 py-2.5 text-center text-sm font-medium text-slate-800 hover:bg-slate-50"
+              >
+                Forgot password
+              </Link>
+            </div>
+            <p className="mt-4 text-center text-xs text-slate-500">
+              Supplier?{" "}
+              <a href="/supplier/login" className="text-blue-600 hover:underline">
+                Portal Supplier
+              </a>
+            </p>
+          </>
+        ) : null}
       </div>
     </div>
   );

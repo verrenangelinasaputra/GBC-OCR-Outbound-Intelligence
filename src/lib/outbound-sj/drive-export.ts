@@ -69,16 +69,15 @@ function assertWarehouseGudang(gudang: string): void {
   }
 }
 
-export async function uploadOutboundSkusSuratKeluarToDrive(
-  doc: OutboundSjDocument
+async function uploadOutboundPngToGudangDrive(
+  doc: OutboundSjDocument,
+  buffer: Buffer,
+  fileName: string
 ): Promise<{ fileId: string; fileUrl: string; fileName: string }> {
   assertWarehouseGudang(doc.gudang);
   const config = getOutboundDriveExportConfig();
-  const buffer = await renderOutboundSuratKeluarPng(doc);
-  const fileName = buildOutboundSuratKeluarDriveFileName(doc);
   const subfolderName = buildOutboundSuratKeluarDriveSubfolderName(doc);
   const rootId = getOutboundSuratKeluarDriveRootId();
-
   const uploaded = await uploadSuratJalanToGudangDrive({
     config,
     buffer,
@@ -88,6 +87,46 @@ export async function uploadOutboundSkusSuratKeluarToDrive(
     subfolderName,
     rootFolderId: rootId,
   });
-
   return { ...uploaded, fileName };
+}
+
+export async function uploadOutboundSkusSuratKeluarToDrive(
+  doc: OutboundSjDocument
+): Promise<{ fileId: string; fileUrl: string; fileName: string }> {
+  const buffer = await renderOutboundSuratKeluarPng(doc);
+  const fileName = buildOutboundSuratKeluarDriveFileName(doc);
+  return uploadOutboundPngToGudangDrive(doc, buffer, fileName);
+}
+
+export function buildOutboundSkulDriveFileName(doc: OutboundSjDocument): string {
+  const dateLabel = normalizeTanggalIso(doc.tanggal);
+  const noSj = sanitizeFileToken(doc.noSj || "UNKNOWN");
+  const gudang = (doc.gudang || "Gudang").trim();
+  return `SKUL_${dateLabel}_${noSj}_${gudang}.png`;
+}
+
+export function buildOutboundRevisionDriveFileName(doc: OutboundSjDocument, sequence: number): string {
+  const dateLabel = normalizeTanggalIso(doc.tanggal);
+  const noSj = sanitizeFileToken(doc.noSj || "UNKNOWN");
+  const gudang = (doc.gudang || "Gudang").trim();
+  const n = Math.max(1, sequence);
+  return `SK_REV${n}_${dateLabel}_${noSj}_${gudang}.png`;
+}
+
+export async function uploadOutboundSkulSuratKeluarToDrive(
+  doc: OutboundSjDocument
+): Promise<{ fileId: string; fileUrl: string; fileName: string }> {
+  const skulDoc = { ...doc, status: "SKUL" as const };
+  const buffer = await renderOutboundSuratKeluarPng(skulDoc);
+  const fileName = buildOutboundSkulDriveFileName(doc);
+  return uploadOutboundPngToGudangDrive(doc, buffer, fileName);
+}
+
+export async function uploadOutboundRevisionSuratKeluarToDrive(
+  doc: OutboundSjDocument,
+  sequence: number
+): Promise<{ fileId: string; fileUrl: string; fileName: string }> {
+  const buffer = await renderOutboundSuratKeluarPng(doc, { revisionSequence: sequence });
+  const fileName = buildOutboundRevisionDriveFileName(doc, sequence);
+  return uploadOutboundPngToGudangDrive(doc, buffer, fileName);
 }

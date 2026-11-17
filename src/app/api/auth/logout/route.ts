@@ -1,6 +1,7 @@
 import { clearSessionCookie, getSession } from "@/lib/auth/session";
 import { isSheetOnlyMode } from "@/lib/config/app-mode";
 import { writeAuditLog } from "@/lib/services/audit";
+import { SUPPLIER_PORTAL_ENABLED } from "@/lib/config/product";
 import { redirect } from "next/navigation";
 
 export async function POST() {
@@ -16,5 +17,7 @@ export async function POST() {
     });
   }
   await clearSessionCookie();
-  redirect(sheetOnly || supplier ? "/supplier/login" : "/login");
+  const supplierLogout =
+    SUPPLIER_PORTAL_ENABLED && supplier && sheetOnly;
+  redirect(supplierLogout ? "/supplier/login" : "/login");
 }
